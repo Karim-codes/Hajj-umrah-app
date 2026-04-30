@@ -68,6 +68,7 @@ export default function RootLayout() {
             <Stack.Screen name="upload" options={{ presentation: 'modal' }} />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="hajj-guide" options={{ presentation: 'card' }} />
+            <Stack.Screen name="umrah-guide" options={{ presentation: 'card' }} />
           </Stack>
           <StatusBar style="light" />
         </ThemeProvider>

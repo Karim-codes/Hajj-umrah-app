@@ -152,6 +152,32 @@ export default function HomeTab() {
             </View>
           </View>
 
+          {/* Umrah Guide — pre-Hajj ritual */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => router.push('/umrah-guide')}
+            style={{ marginBottom: 8 }}
+          >
+            <LinearGradient
+              colors={['rgba(46,204,135,0.20)', 'rgba(46,204,135,0.05)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.guideCard}
+            >
+              <View style={[styles.guideIcon, { backgroundColor: 'rgba(46,204,135,0.2)' }]}>
+                <Ionicons name="star" size={24} color={Palette.green} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.guideEyebrow, { color: Palette.green }]}>UMRAH GUIDE</Text>
+                <Text style={styles.guideTitle}>Step-by-step Umrah rituals</Text>
+                <Text style={styles.guideSub}>
+                  Ihram · Tawaf · Sa'i · Du'as · Lap Counter
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Palette.green} />
+            </LinearGradient>
+          </TouchableOpacity>
+
           {/* Hajj Guide entry — day-by-day rites */}
           <TouchableOpacity
             activeOpacity={0.85}
