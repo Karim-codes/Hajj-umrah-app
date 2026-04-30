@@ -36,6 +36,12 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+app-example
+
 # generated native folders
 /ios
 /android
+
+# personal data / local files
+*.pdf
+simulator_screenshot_*.png
