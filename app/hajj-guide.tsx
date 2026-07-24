@@ -1,3 +1,4 @@
+import { RitualGlyphKind, RitualIcon } from '@/components/ritual-glyph';
 import { Palette, RawafFonts } from '@/constants/rawaf-theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -479,7 +480,7 @@ const ROADMAP_LEGS: RoadmapLeg[] = [
 // ─── SERPENTINE ROADMAP ENGINE (mirrors Umrah guide visual style) ───────────
 
 const NODE_SIZE = 64;
-const NODE_GAP_Y = 58;
+const NODE_GAP_Y = 72;
 const ROAD_PAD_H = 24;
 const PATH_COLS = 3;
 
@@ -488,7 +489,8 @@ type HajjNode = {
   site: string;
   arabicSite?: string;
   hijri: string;
-  emoji: string;
+  icon?: keyof typeof Ionicons.glyphMap;
+  glyph?: RitualGlyphKind;
   transport?: string;
   transportIcon?: keyof typeof Ionicons.glyphMap;
   distanceFromPrev?: string;
@@ -503,7 +505,7 @@ const HAJJ_NODES: HajjNode[] = [
     site: 'Makkah',
     arabicSite: 'مَكَّة',
     hijri: 'Before 8 Dhul-Hijjah',
-    emoji: '🕋',
+    glyph: 'kaaba',
     detail:
       'Arrive in Makkah and check in to your hotel. Perform Umrah first if you haven\'t. Rest and prepare spiritually for Hajj.',
     when: 'Upon arrival',
@@ -514,7 +516,7 @@ const HAJJ_NODES: HajjNode[] = [
     site: 'Mina',
     arabicSite: 'مِنَى',
     hijri: '8 Dhul-Hijjah',
-    emoji: '⛺',
+    glyph: 'tent',
     transport: 'Bus',
     transportIcon: 'bus',
     distanceFromPrev: '~8 km',
@@ -528,7 +530,7 @@ const HAJJ_NODES: HajjNode[] = [
     site: 'Arafat',
     arabicSite: 'عَرَفَات',
     hijri: '9 Dhul-Hijjah',
-    emoji: '☀️',
+    icon: 'sunny',
     transport: 'Bus',
     transportIcon: 'bus',
     distanceFromPrev: '~14 km',
@@ -542,7 +544,7 @@ const HAJJ_NODES: HajjNode[] = [
     site: 'Muzdalifah',
     arabicSite: 'مُزْدَلِفَة',
     hijri: '9 Dhul-Hijjah (night)',
-    emoji: '🌙',
+    icon: 'moon',
     transport: 'Bus',
     transportIcon: 'bus',
     distanceFromPrev: '~9 km',
@@ -555,7 +557,7 @@ const HAJJ_NODES: HajjNode[] = [
     site: 'Mina · Jamarat',
     arabicSite: 'الجَمَرَات',
     hijri: '10 Dhul-Hijjah — Eid',
-    emoji: '🪨',
+    glyph: 'jamarat',
     transport: 'Walk / Bus',
     transportIcon: 'walk',
     distanceFromPrev: '~5 km',
@@ -569,7 +571,7 @@ const HAJJ_NODES: HajjNode[] = [
     site: 'Makkah · Haram',
     arabicSite: 'ٱلطَّوَاف',
     hijri: '10 Dhul-Hijjah',
-    emoji: '🔄',
+    icon: 'sync',
     transport: 'Bus / Car',
     transportIcon: 'car',
     distanceFromPrev: '~8 km',
@@ -583,7 +585,7 @@ const HAJJ_NODES: HajjNode[] = [
     site: 'Mina · Days 11–13',
     arabicSite: 'أَيَّام ٱلتَّشْرِيق',
     hijri: '11–13 Dhul-Hijjah',
-    emoji: '🌟',
+    glyph: 'jamarat',
     transport: 'Walk',
     transportIcon: 'walk',
     distanceFromPrev: '~2 km',
@@ -596,7 +598,7 @@ const HAJJ_NODES: HajjNode[] = [
     site: 'Makkah · Farewell',
     arabicSite: 'طَوَاف ٱلوَدَاع',
     hijri: '13 Dhul-Hijjah',
-    emoji: '🤲',
+    glyph: 'kaaba',
     transport: 'Bus / Car',
     transportIcon: 'car',
     distanceFromPrev: '~8 km',
@@ -722,8 +724,8 @@ function HajjPulsingRing({ size }: { size: number }) {
 }
 
 function HajjConnector({
-  fromX, fromY, toX, toY,
-}: { fromX: number; fromY: number; toX: number; toY: number }) {
+  fromX, fromY, toX, toY, done,
+}: { fromX: number; fromY: number; toX: number; toY: number; done?: boolean }) {
   const DOTS = 16;
   const half = NODE_SIZE / 2;
   const x1 = fromX + half, y1 = fromY + half;
@@ -747,7 +749,7 @@ function HajjConnector({
           width: sz,
           height: sz,
           borderRadius: sz / 2,
-          backgroundColor: 'rgba(201,168,76,0.18)',
+          backgroundColor: done ? 'rgba(201,168,76,0.85)' : 'rgba(201,168,76,0.28)',
         }}
       />,
     );
@@ -961,6 +963,7 @@ export default function HajjGuideScreen() {
                     fromY={prev.y}
                     toX={pos.x}
                     toY={pos.y}
+                    done={i <= roadmapActiveIdx}
                   />
                 );
               })}
@@ -994,6 +997,7 @@ export default function HajjGuideScreen() {
                         setDetailOpen(true);
                       }}
                       activeOpacity={0.8}
+                      hitSlop={{ top: 10, bottom: 34, left: 24, right: 24 }}
                       style={[
                         styles.node,
                         isDone && styles.nodeDone,
@@ -1002,7 +1006,11 @@ export default function HajjGuideScreen() {
                         isLast && styles.nodeFinish,
                       ]}
                     >
-                      <Text style={{ fontSize: isDone ? 20 : 26 }}>{node.emoji}</Text>
+                      <RitualIcon
+                        name={node.glyph ?? node.icon ?? 'ellipse'}
+                        size={isDone ? 22 : 26}
+                        color={isDone ? '#0f1628' : isActive ? Palette.gold : Palette.textMuted}
+                      />
                       {isDone && (
                         <View style={styles.checkBadge}>
                           <Ionicons name="checkmark" size={10} color="#fff" />

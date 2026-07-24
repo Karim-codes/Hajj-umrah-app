@@ -6,12 +6,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Animated,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Animated,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -849,6 +849,15 @@ export default function HomeTab() {
   const currentHotel = getCurrentStay(itinerary.hotels);
   const displayStay = getNextOrCurrentStay(itinerary.hotels);
   const stayLabel = currentHotel ? "Today's stay" : 'Next stay';
+  const pilgrimName = itinerary.pilgrim?.name || 'Pilgrim';
+  const initials =
+    pilgrimName
+      .split(' ')
+      .filter(Boolean)
+      .map((w) => w[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || 'P';
 
   // Umrah journey overview — the two holy cities in visit order
   const umrahRoute = itinerary.umrah?.route;
@@ -877,7 +886,7 @@ export default function HomeTab() {
             hitSlop={10}
             activeOpacity={0.7}
           >
-            <Ionicons name="settings-outline" size={22} color={Palette.textPrimary} />
+            <Text style={styles.settingsInitials}>{initials}</Text>
           </TouchableOpacity>
         </View>
 
@@ -1071,38 +1080,69 @@ export default function HomeTab() {
           )}
 
           {/* Today's Stay / Next Stay — redesigned */}
-          <Text style={styles.sectionTitle}>NEXT STAY</Text>
+          <Text style={styles.sectionTitle}>{stayLabel.toUpperCase()}</Text>
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={() => router.push('/stays')}
             style={styles.stayCard}
           >
-            <View style={styles.stayTop}>
-              <View style={styles.stayIconWrap}>
-                <MonochromeBadge type="stay" size={40} />
+            {displayStay ? (
+              <>
+                <View style={styles.stayTop}>
+                  <View style={styles.stayIconWrap}>
+                    <MonochromeBadge type="stay" size={40} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.stayName} numberOfLines={1}>
+                      {displayStay.name || 'Your hotel'}
+                    </Text>
+                    <Text style={styles.stayCity}>{displayStay.city || '—'}</Text>
+                  </View>
+                  {currentHotel && (
+                    <View style={styles.stayLiveBadge}>
+                      <View style={styles.stayLiveDot} />
+                      <Text style={styles.stayLiveText}>STAYING</Text>
+                    </View>
+                  )}
+                  <Ionicons name="chevron-forward" size={18} color={Palette.textMuted} />
+                </View>
+                <View style={styles.stayDates}>
+                  <View style={styles.stayDateBlock}>
+                    <Text style={styles.stayDateLabel}>CHECK-IN</Text>
+                    <Text style={styles.stayDateValue}>
+                      {displayStay.checkIn ? formatDateShort(displayStay.checkIn) : '—'}
+                    </Text>
+                  </View>
+                  <View style={styles.stayNightsPill}>
+                    <Text style={styles.stayNightsNum}>
+                      {daysBetween(displayStay.checkIn, displayStay.checkOut) || '—'}
+                    </Text>
+                    <Text style={styles.stayNightsLabel}>NIGHTS</Text>
+                  </View>
+                  <View style={[styles.stayDateBlock, { alignItems: 'flex-end' }]}>
+                    <Text style={styles.stayDateLabel}>CHECK-OUT</Text>
+                    <Text style={styles.stayDateValue}>
+                      {displayStay.checkOut ? formatDateShort(displayStay.checkOut) : '—'}
+                    </Text>
+                  </View>
+                </View>
+              </>
+            ) : (
+              <View style={styles.stayEmpty}>
+                <View style={styles.stayIconWrap}>
+                  <MonochromeBadge type="stay" size={40} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.stayName}>Add your hotel</Text>
+                  <Text style={styles.stayEmptySub}>
+                    Set check-in & check-out to track your stay
+                  </Text>
+                </View>
+                <View style={styles.stayAddBtn}>
+                  <Ionicons name="add" size={20} color={Palette.gold} />
+                </View>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.stayName} numberOfLines={1}>
-                  {displayStay?.name || 'Hotel details'}
-                </Text>
-                <Text style={styles.stayCity}>{displayStay?.city || 'Tap to set'}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={Palette.textMuted} />
-            </View>
-            <View style={styles.stayDates}>
-              <View style={styles.stayDateBlock}>
-                <Text style={styles.stayDateLabel}>CHECK-IN</Text>
-                <Text style={styles.stayDateValue}>
-                  {displayStay?.checkIn ? formatDateShort(displayStay.checkIn) : 'Tap to set'}
-                </Text>
-              </View>
-              <View style={styles.stayDateBlock}>
-                <Text style={styles.stayDateLabel}>CHECK-OUT</Text>
-                <Text style={styles.stayDateValue}>
-                  {displayStay?.checkOut ? formatDateShort(displayStay.checkOut) : 'Tap to set'}
-                </Text>
-              </View>
-            </View>
+            )}
           </TouchableOpacity>
 
           {/* Prayer Countdown */}
@@ -1131,15 +1171,73 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   settingsBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: Palette.cardBg,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(201,168,76,0.12)',
     borderWidth: 1,
-    borderColor: Palette.border,
+    borderColor: 'rgba(201,168,76,0.4)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
+  },
+  settingsInitials: {
+    fontFamily: RawafFonts.bodyBold,
+    fontSize: 15,
+    color: Palette.gold,
+    letterSpacing: 0.5,
+  },
+  stayEmpty: { flexDirection: 'row', alignItems: 'center' },
+  stayEmptySub: {
+    fontFamily: RawafFonts.body,
+    fontSize: 12,
+    color: Palette.textSecondary,
+    marginTop: 3,
+    lineHeight: 16,
+  },
+  stayAddBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(201,168,76,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(201,168,76,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stayLiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(46,204,135,0.15)',
+    marginRight: 8,
+  },
+  stayLiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Palette.green },
+  stayLiveText: {
+    fontFamily: RawafFonts.bodyBold,
+    fontSize: 8,
+    letterSpacing: 1,
+    color: Palette.green,
+  },
+  stayNightsPill: {
+    alignItems: 'center',
+    paddingHorizontal: 14,
+  },
+  stayNightsNum: {
+    fontFamily: RawafFonts.display,
+    fontSize: 22,
+    color: Palette.gold,
+    lineHeight: 24,
+  },
+  stayNightsLabel: {
+    fontFamily: RawafFonts.bodyBold,
+    fontSize: 8,
+    letterSpacing: 1,
+    color: Palette.textMuted,
+    marginTop: 1,
   },
   greeting: { fontFamily: RawafFonts.body, fontSize: 14, color: Palette.textSecondary },
   greetingName: {

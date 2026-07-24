@@ -1,3 +1,4 @@
+import { RitualGlyph, RitualGlyphKind, RitualIcon } from '@/components/ritual-glyph';
 import { Palette, RawafFonts } from '@/constants/rawaf-theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -31,7 +32,7 @@ type UmrahStep = {
   laps?: LapInfo;
   icon: keyof typeof Ionicons.glyphMap;
   important?: boolean;
-  emoji?: string;
+  glyph?: RitualGlyphKind;
 };
 
 type LapInfo = {
@@ -46,7 +47,6 @@ const UMRAH_STEPS: UmrahStep[] = [
     phase: 'Preparation',
     title: 'Enter Ihram',
     arabicTitle: 'ٱلْإِحْرَام',
-    emoji: '🤲',
     detail:
       'Before reaching the Miqat, perform Ghusl (full body wash), wear your Ihram garments (two white unstitched cloths for men), and make the intention (niyyah) for Umrah. Then recite the Talbiyah.',
     dua: {
@@ -63,7 +63,7 @@ const UMRAH_STEPS: UmrahStep[] = [
     phase: 'Al-Masjid al-Haram',
     title: 'Enter the Mosque',
     arabicTitle: 'دُخُول ٱلْمَسْجِد',
-    emoji: '🕌',
+    glyph: 'mosque',
     detail:
       'Enter al-Masjid al-Haram through Bab as-Salam or any door. Step in with your right foot first and recite the du\'a for entering.',
     dua: {
@@ -80,7 +80,6 @@ const UMRAH_STEPS: UmrahStep[] = [
     id: 'first-sight',
     phase: 'First Sight',
     title: 'See the Ka\'bah',
-    emoji: '✨',
     detail:
       'When you first see the Ka\'bah, stop and raise your hands in du\'a. This is a moment when supplications are accepted — ask Allah for whatever you wish.',
     icon: 'eye',
@@ -91,7 +90,7 @@ const UMRAH_STEPS: UmrahStep[] = [
     phase: 'Tawaf',
     title: 'Black Stone Start',
     arabicTitle: 'ٱلطَّوَاف',
-    emoji: '🕋',
+    glyph: 'kaaba',
     detail:
       'Start at the Black Stone corner (green light marks it). If possible, touch or kiss it. If crowded, point with your right hand and say "Allahu Akbar". Keep the Ka\'bah on your left.',
     dua: {
@@ -112,7 +111,6 @@ const UMRAH_STEPS: UmrahStep[] = [
     phase: 'Laps 1–3',
     title: 'Fast Walk (Raml)',
     arabicTitle: 'ٱلرَّمَل',
-    emoji: '🏃',
     detail:
       'First three rounds: men walk briskly with short steps. Practice Idtiba (uncover right shoulder). Recite du\'a between the Yemeni Corner and Black Stone.',
     dua: {
@@ -126,7 +124,6 @@ const UMRAH_STEPS: UmrahStep[] = [
     id: 'tawaf-normal',
     phase: 'Laps 4–7',
     title: 'Walk Normally',
-    emoji: '🚶',
     detail:
       'Rounds 4–7: walk at a normal pace. Continue du\'a, dhikr, and Quran. Say "Allahu Akbar" each time you pass the Black Stone.',
     icon: 'walk',
@@ -136,7 +133,6 @@ const UMRAH_STEPS: UmrahStep[] = [
     phase: 'After Tawaf',
     title: '2 Rak\'ah Prayer',
     arabicTitle: 'صَلَاة ٱلْمَقَام',
-    emoji: '🙏',
     detail:
       'Pray 2 rak\'ah behind Maqam Ibrahim. Recite Surah al-Kafirun in the first, Surah al-Ikhlas in the second. If crowded, pray anywhere in the mosque.',
     dua: {
@@ -151,7 +147,6 @@ const UMRAH_STEPS: UmrahStep[] = [
     id: 'zamzam',
     phase: 'Zamzam',
     title: 'Drink Zamzam',
-    emoji: '💧',
     detail:
       'Face the Qiblah, say "Bismillah", drink in three sips. "Zamzam water is for whatever it is drunk for." Ask for knowledge, provision, and cure.',
     icon: 'water',
@@ -161,7 +156,6 @@ const UMRAH_STEPS: UmrahStep[] = [
     phase: 'Sa\'i Begins',
     title: 'Mount Safa',
     arabicTitle: 'ٱلسَّعْي',
-    emoji: '⛰️',
     detail:
       'Go to Mount Safa. Face the Ka\'bah, raise your hands, say "Allahu Akbar" three times and make du\'a.',
     dua: {
@@ -176,7 +170,6 @@ const UMRAH_STEPS: UmrahStep[] = [
     id: 'sai-laps',
     phase: '7 Laps',
     title: 'Safa ↔ Marwa',
-    emoji: '🔄',
     detail:
       'Walk Safa→Marwa (1), Marwa→Safa (2)… 7 laps ending at Marwa. Men jog between the green lights. Make personal du\'a throughout.',
     laps: {
@@ -191,7 +184,6 @@ const UMRAH_STEPS: UmrahStep[] = [
     phase: 'Completion',
     title: 'Shave / Trim',
     arabicTitle: 'ٱلْحَلْق',
-    emoji: '💈',
     detail:
       'Men: shaving (Halq) is preferred. Women: trim a fingertip\'s length. After this, all Ihram restrictions are lifted.',
     icon: 'cut',
@@ -201,7 +193,6 @@ const UMRAH_STEPS: UmrahStep[] = [
     id: 'complete',
     phase: 'Alhamdulillah',
     title: 'Umrah Complete!',
-    emoji: '🌟',
     detail:
       'Your Umrah is complete! You are free from Ihram. May Allah accept your worship. Remain in Makkah and pray until Hajj begins on 8 Dhul-Hijjah.',
     icon: 'checkmark-circle',
@@ -261,7 +252,7 @@ function LapCounter({ laps }: { laps: LapInfo }) {
           activeOpacity={0.7}
         >
           <Text style={s.trackerBtnText}>
-            {currentLap >= laps.total ? 'Done!' : 'Allahu Akbar ☝️'}
+            {currentLap >= laps.total ? 'Done!' : 'Allahu Akbar'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -394,7 +385,7 @@ function LinearView({
         end={{ x: 1, y: 1 }}
       >
         <View style={s.heroEmoji}>
-          <Text style={{ fontSize: 48 }}>🕋</Text>
+          <RitualGlyph kind="kaaba" size={54} color={Palette.gold} />
         </View>
         <Text style={s.heroEyebrow}>BEFORE DAY 8 · DHUL-HIJJAH</Text>
         <Text style={s.heroTitle}>Umrah</Text>
@@ -471,7 +462,7 @@ function LinearView({
 
 const PATH_COLS = 3;
 const NODE_SIZE = 62;
-const NODE_GAP_Y = 56;
+const NODE_GAP_Y = 70;
 const ROAD_PAD_H = 22;
 
 function getColumnX(col: number, containerW: number): number {
@@ -585,13 +576,15 @@ function RoadConnector({
   fromY,
   toX,
   toY,
+  done,
 }: {
   fromX: number;
   fromY: number;
   toX: number;
   toY: number;
+  done?: boolean;
 }) {
-  const DOTS = 14;
+  const DOTS = 16;
   const halfNode = NODE_SIZE / 2;
   const x1 = fromX + halfNode;
   const y1 = fromY + halfNode;
@@ -617,7 +610,7 @@ function RoadConnector({
           width: sz,
           height: sz,
           borderRadius: sz / 2,
-          backgroundColor: 'rgba(201,168,76,0.18)',
+          backgroundColor: done ? 'rgba(201,168,76,0.85)' : 'rgba(201,168,76,0.28)',
         }}
       />,
     );
@@ -663,6 +656,7 @@ function RoadmapView({
               fromY={prev.y}
               toX={pos.x}
               toY={pos.y}
+              done={i <= completedUpTo}
             />
           );
         })}
@@ -693,6 +687,7 @@ function RoadmapView({
               <TouchableOpacity
                 onPress={() => onNodeTap(step, i)}
                 activeOpacity={0.8}
+                hitSlop={{ top: 10, bottom: 34, left: 24, right: 24 }}
                 style={[
                   s.node,
                   isDone && s.nodeDone,
@@ -701,15 +696,11 @@ function RoadmapView({
                   isLast && s.nodeFinish,
                 ]}
               >
-                {step.emoji ? (
-                  <Text style={{ fontSize: isDone ? 20 : 26 }}>{step.emoji}</Text>
-                ) : (
-                  <Ionicons
-                    name={step.icon}
-                    size={24}
-                    color={isDone ? '#0f1628' : isActive ? Palette.gold : Palette.textMuted}
-                  />
-                )}
+                <RitualIcon
+                  name={step.glyph ?? step.icon}
+                  size={isDone ? 22 : 25}
+                  color={isDone ? '#0f1628' : isActive ? Palette.gold : Palette.textMuted}
+                />
                 {isDone && (
                   <View style={s.checkBadge}>
                     <Ionicons name="checkmark" size={10} color="#fff" />
