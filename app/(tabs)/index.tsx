@@ -846,6 +846,12 @@ export default function HomeTab() {
   const returnDate = itinerary.flights?.return?.arrivalDate;
   const daysLeft = daysUntil(departureDate);
   const tripDays = daysBetween(departureDate, returnDate);
+  const dayOfTrip = daysLeft !== null ? 1 - daysLeft : null;
+  const tripInProgress =
+    dayOfTrip !== null &&
+    tripDays !== null &&
+    dayOfTrip >= 1 &&
+    dayOfTrip <= tripDays + 1;
   const currentHotel = getCurrentStay(itinerary.hotels);
   const displayStay = getNextOrCurrentStay(itinerary.hotels);
   const stayLabel = currentHotel ? "Today's stay" : 'Next stay';
@@ -914,7 +920,17 @@ export default function HomeTab() {
               </>
             )}
 
-            <Text style={styles.heroLabel}>PILGRIM</Text>
+            <View style={styles.heroLabelRow}>
+              <Text style={styles.heroLabel}>PILGRIM</Text>
+              {tripInProgress && (
+                <View style={styles.dayPill}>
+                  <View style={styles.dayPillDot} />
+                  <Text style={styles.dayPillText}>
+                    DAY {dayOfTrip} OF {tripDays}
+                  </Text>
+                </View>
+              )}
+            </View>
             <Text style={styles.heroName} numberOfLines={1}>
               {itinerary.pilgrim?.name}
             </Text>
@@ -1008,6 +1024,9 @@ export default function HomeTab() {
             <View style={[styles.heroCorner, { bottom: 12, right: 12, transform: [{ rotate: '180deg' }] }]} />
 
             {!isUmrah && <Text style={styles.heroWatermark}>RAWAF</Text>}
+
+            {/* glassmorphism edge — subtle top-lit inner border */}
+            <View pointerEvents="none" style={styles.heroGlassEdge} />
           </LinearGradient>
 
           {/* Visa status row — Hajj only */}
@@ -1242,10 +1261,45 @@ const styles = StyleSheet.create({
   greeting: { fontFamily: RawafFonts.body, fontSize: 14, color: Palette.textSecondary },
   greetingName: {
     fontFamily: RawafFonts.display,
-    fontSize: 34,
+    fontSize: 26,
     color: Palette.textPrimary,
-    lineHeight: 40,
+    lineHeight: 32,
     marginTop: 2,
+  },
+  heroLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dayPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(201,168,76,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(201,168,76,0.3)',
+  },
+  dayPillDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: Palette.gold },
+  dayPillText: {
+    fontFamily: RawafFonts.bodyBold,
+    fontSize: 9,
+    letterSpacing: 1,
+    color: Palette.gold,
+  },
+  heroGlassEdge: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    borderTopColor: 'rgba(255,255,255,0.18)',
+    borderLeftColor: 'rgba(255,255,255,0.1)',
   },
 
   // HERO CARD

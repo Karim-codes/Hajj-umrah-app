@@ -2,8 +2,10 @@ import { Palette, RawafFonts } from '@/constants/rawaf-theme';
 import { useItinerary } from '@/context/itinerary-context';
 import { deriveHajjDays, formatDate, getStepStatus } from '@/lib/date-helpers';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Animated,
     Dimensions,
@@ -45,6 +47,60 @@ interface Phase {
 
 const { width } = Dimensions.get('window');
 
+const PROGRESS_KEY = 'rawaf-journey-progress';
+
+// ─── Segmented master progress ring (no SVG needed) ─────────────────────────
+
+function SegmentRing({
+  size = 72,
+  total,
+  done,
+  color = Palette.gold,
+  track = 'rgba(255,255,255,0.1)',
+  children,
+}: {
+  size?: number;
+  total: number;
+  done: number;
+  color?: string;
+  track?: string;
+  children?: React.ReactNode;
+}) {
+  const count = Math.max(total, 1);
+  const tickH = size * 0.13;
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      {Array.from({ length: count }).map((_, i) => {
+        const angle = (i / count) * 360;
+        const filled = i < done;
+        return (
+          <View
+            key={i}
+            style={{
+              position: 'absolute',
+              width: size,
+              height: size,
+              alignItems: 'center',
+              transform: [{ rotate: `${angle}deg` }],
+            }}
+          >
+            <View
+              style={{
+                width: 3,
+                height: tickH,
+                marginTop: 1.5,
+                borderRadius: 2,
+                backgroundColor: filled ? color : track,
+              }}
+            />
+          </View>
+        );
+      })}
+      <View style={{ alignItems: 'center', justifyContent: 'center' }}>{children}</View>
+    </View>
+  );
+}
+
 // ─── Hero progress card ─────────────────────────────────────────────────────
 
 function ProgressHero({
@@ -60,17 +116,7 @@ function ProgressHero({
   total: number;
   nextStep?: Step;
 }) {
-  const pct = total > 0 ? done / total : 0;
-  const widthAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(widthAnim, {
-      toValue: pct,
-      duration: 900,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
-  }, [pct, widthAnim]);
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
   const heroLabel = tripType === 'hajj' ? 'Hajj Journey' : 'Umrah Journey';
   const heroSub =
@@ -85,37 +131,24 @@ function ProgressHero({
       end={{ x: 1, y: 1 }}
       style={hero.card}
     >
-      <View style={hero.row}>
-        <View style={hero.eyebrowDot} />
-        <Text style={hero.eyebrow}>{tripType === 'hajj' ? 'HAJJ 1447 AH' : 'UMRAH JOURNEY'}</Text>
-      </View>
-      <Text style={hero.title}>{heroLabel}</Text>
-      <Text style={hero.subtitle}>{heroSub}</Text>
-
-      <View style={hero.progressRow}>
-        <View style={hero.progressTrack}>
-          <Animated.View
-            style={[
-              hero.progressFill,
-              {
-                width: widthAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['0%', '100%'],
-                }),
-              },
-            ]}
-          >
-            <LinearGradient
-              colors={[Palette.gold, '#e7c97a']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={StyleSheet.absoluteFill}
-            />
-          </Animated.View>
+      <View style={hero.topRow}>
+        <View style={{ flex: 1, paddingRight: 12 }}>
+          <View style={hero.row}>
+            <View style={hero.eyebrowDot} />
+            <Text style={hero.eyebrow}>
+              {tripType === 'hajj' ? 'HAJJ 1447 AH' : 'UMRAH JOURNEY'}
+            </Text>
+          </View>
+          <Text style={hero.title}>{heroLabel}</Text>
+          <Text style={hero.subtitle}>{heroSub}</Text>
         </View>
-        <Text style={hero.progressText}>
-          {done}<Text style={hero.progressTextMuted}> / {total}</Text>
-        </Text>
+
+        <SegmentRing size={78} total={total} done={done}>
+          <Text style={hero.ringPct}>{pct}%</Text>
+          <Text style={hero.ringFraction}>
+            {done}/{total}
+          </Text>
+        </SegmentRing>
       </View>
 
       {nextStep && (
@@ -144,10 +177,14 @@ function StepCard({
   step,
   isFirst,
   isLast,
+  completed,
+  onToggleComplete,
 }: {
   step: Step;
   isFirst: boolean;
   isLast: boolean;
+  completed: boolean;
+  onToggleComplete: () => void;
 }) {
   const [expanded, setExpanded] = useState(step.status === 'active');
   const expandAnim = useRef(new Animated.Value(step.status === 'active' ? 1 : 0)).current;
@@ -186,14 +223,16 @@ function StepCard({
     setExpanded(!expanded);
   };
 
-  const isDone = step.status === 'done';
-  const isActive = step.status === 'active';
+  const isActive = step.status === 'active' && !completed;
+  const isDone = completed || step.status === 'done';
 
-  const haloColor = isDone
-    ? Palette.green
-    : isActive
-      ? step.accent
-      : Palette.textMuted;
+  const haloColor = completed
+    ? Palette.gold
+    : isDone
+      ? Palette.green
+      : isActive
+        ? step.accent
+        : Palette.textMuted;
 
   return (
     <View style={card.row}>
@@ -223,7 +262,7 @@ function StepCard({
           ]}
         >
           {isDone ? (
-            <Ionicons name="checkmark" size={18} color={Palette.green} />
+            <Ionicons name="checkmark" size={18} color={completed ? Palette.gold : Palette.green} />
           ) : (
             <Ionicons
               name={step.icon}
@@ -259,6 +298,7 @@ function StepCard({
               style={[
                 card.title,
                 isDone && { color: Palette.textSecondary },
+                completed && { textDecorationLine: 'line-through' },
               ]}
               numberOfLines={1}
             >
@@ -275,9 +315,18 @@ function StepCard({
               <Text style={card.nowText}>NOW</Text>
             </View>
           )}
-          {step.date && !isActive && (
+          {step.date && !isActive && !completed && (
             <Text style={card.dateText}>{step.date}</Text>
           )}
+
+          <TouchableOpacity
+            onPress={onToggleComplete}
+            hitSlop={10}
+            activeOpacity={0.7}
+            style={[card.checkBtn, completed && card.checkBtnDone]}
+          >
+            {completed && <Ionicons name="checkmark" size={15} color="#0f1628" />}
+          </TouchableOpacity>
         </View>
 
         <Animated.View
@@ -675,6 +724,7 @@ function buildSteps(itinerary: any): { tripType: 'hajj' | 'umrah'; phases: Phase
 export default function JourneyTab() {
   const { itinerary } = useItinerary();
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [completedMap, setCompletedMap] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -684,16 +734,36 @@ export default function JourneyTab() {
     }).start();
   }, [fadeAnim]);
 
+  useEffect(() => {
+    AsyncStorage.getItem(PROGRESS_KEY)
+      .then((raw) => {
+        if (raw) setCompletedMap(JSON.parse(raw));
+      })
+      .catch(() => {});
+  }, []);
+
+  const toggleComplete = useCallback((id: string) => {
+    setCompletedMap((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      if (!next[id]) delete next[id];
+      AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify(next)).catch(() => {});
+      Haptics.impactAsync(
+        next[id] ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light,
+      ).catch(() => {});
+      return next;
+    });
+  }, []);
+
   const built = useMemo(() => (itinerary ? buildSteps(itinerary) : null), [itinerary]);
 
   if (!itinerary || !built) return null;
 
   const { tripType, phases } = built;
   const allSteps = phases.flatMap((p) => p.steps);
-  const done = allSteps.filter((s) => s.status === 'done').length;
+  const done = allSteps.filter((st) => completedMap[st.id]).length;
   const nextStep =
-    allSteps.find((s) => s.status === 'active') ??
-    allSteps.find((s) => s.status === 'upcoming');
+    allSteps.find((st) => !completedMap[st.id] && st.status === 'active') ??
+    allSteps.find((st) => !completedMap[st.id] && st.status === 'upcoming');
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
@@ -712,7 +782,7 @@ export default function JourneyTab() {
           />
 
           {phases.map((phase) => {
-            const phaseDone = phase.steps.filter((st) => st.status === 'done').length;
+            const phaseDone = phase.steps.filter((st) => completedMap[st.id]).length;
             return (
               <View key={phase.id}>
                 <PhaseHeader phase={phase} doneCount={phaseDone} />
@@ -722,6 +792,8 @@ export default function JourneyTab() {
                     step={step}
                     isFirst={i === 0}
                     isLast={i === phase.steps.length - 1}
+                    completed={!!completedMap[step.id]}
+                    onToggleComplete={() => toggleComplete(step.id)}
                   />
                 ))}
               </View>
@@ -753,7 +825,20 @@ const hero = StyleSheet.create({
     borderColor: Palette.goldBorder,
     overflow: 'hidden',
   },
+  topRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   row: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  ringPct: {
+    fontFamily: RawafFonts.bodyBold,
+    fontSize: 17,
+    color: Palette.gold,
+    lineHeight: 20,
+  },
+  ringFraction: {
+    fontFamily: RawafFonts.body,
+    fontSize: 10,
+    color: Palette.textMuted,
+    marginTop: 1,
+  },
   eyebrowDot: {
     width: 6,
     height: 6,
@@ -936,6 +1021,21 @@ const card = StyleSheet.create({
   },
   cardDone: { opacity: 0.78 },
   head: { flexDirection: 'row', alignItems: 'center' },
+  checkBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(201,168,76,0.5)',
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 10,
+  },
+  checkBtnDone: {
+    backgroundColor: Palette.gold,
+    borderColor: Palette.gold,
+  },
   title: {
     fontFamily: RawafFonts.bodySemiBold,
     fontSize: 15,
