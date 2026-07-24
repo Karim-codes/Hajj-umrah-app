@@ -62,6 +62,68 @@ export function getCurrentStay(hotels: { hotel1?: any; hotel2?: any } | undefine
   return null;
 }
 
+/**
+ * Returns the next upcoming stay (check-in is in the future) or
+ * the current stay if one is active. Falls back to hotel1.
+ */
+export function getNextOrCurrentStay(hotels: { hotel1?: any; hotel2?: any } | undefined) {
+  if (!hotels) return null;
+  const current = getCurrentStay(hotels);
+  if (current) return current;
+
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  let nearest: any = null;
+  let nearestDiff = Infinity;
+  for (const key of ['hotel1', 'hotel2'] as const) {
+    const hotel = hotels[key];
+    if (!hotel?.checkIn) continue;
+    const checkIn = parseDate(hotel.checkIn);
+    if (!checkIn) continue;
+    checkIn.setHours(0, 0, 0, 0);
+    const diff = checkIn.getTime() - now.getTime();
+    if (diff > 0 && diff < nearestDiff) {
+      nearestDiff = diff;
+      nearest = hotel;
+    }
+  }
+  return nearest || hotels.hotel1 || hotels.hotel2 || null;
+}
+
+export interface HajjDays {
+  tarwiyah: string;  // 8 Dhul-Hijjah
+  arafah: string;    // 9 Dhul-Hijjah
+  eid: string;       // 10 Dhul-Hijjah
+  tashreeq1: string; // 11 Dhul-Hijjah
+  tashreeq2: string; // 12 Dhul-Hijjah
+  tashreeq3: string; // 13 Dhul-Hijjah
+}
+
+function shiftISO(dateStr: string, days: number): string {
+  const d = parseDate(dateStr);
+  if (!d) return dateStr;
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Derive the 6 Hajj day dates from the Day of Arafah (9 Dhul-Hijjah).
+ * Returns null if no Arafah date is provided.
+ */
+export function deriveHajjDays(arafahDate?: string): HajjDays | null {
+  if (!arafahDate) return null;
+  const arafah = parseDate(arafahDate);
+  if (!arafah) return null;
+  return {
+    tarwiyah: shiftISO(arafahDate, -1),
+    arafah: arafahDate,
+    eid: shiftISO(arafahDate, 1),
+    tashreeq1: shiftISO(arafahDate, 2),
+    tashreeq2: shiftISO(arafahDate, 3),
+    tashreeq3: shiftISO(arafahDate, 4),
+  };
+}
+
 export function getStepStatus(
   startDate?: string,
   endDate?: string
@@ -70,11 +132,12 @@ export function getStepStatus(
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   const start = parseDate(startDate);
-  const end = endDate ? parseDate(endDate) : start;
   if (!start) return 'upcoming';
   start.setHours(0, 0, 0, 0);
+  const end = endDate ? parseDate(endDate) : null;
   if (end) end.setHours(0, 0, 0, 0);
-  if (end && now > end) return 'done';
-  if (now >= start && (!end || now <= end)) return 'active';
+  const effectiveEnd = end ?? start;
+  if (now.getTime() > effectiveEnd.getTime()) return 'done';
+  if (now.getTime() >= start.getTime() && now.getTime() <= effectiveEnd.getTime()) return 'active';
   return 'upcoming';
 }

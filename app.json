@@ -10,7 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.kemo1999.Rawaf-app"
+      "bundleIdentifier": "com.kemo1999.rawafapp",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -39,11 +42,19 @@
             "backgroundColor": "#0f1628"
           }
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2f80bd83-141b-4ce1-b0e4-769c747fa4bb"
+      }
+    },
+    "owner": "kemo1999"
   }
 }

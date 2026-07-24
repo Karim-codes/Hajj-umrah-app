@@ -1,6 +1,26 @@
+/**
+ * PDF text extraction for Nusuk Hajj itinerary PDFs.
+ *
+ * Uses iOS native PDFKit (via local Expo module) for text extraction.
+ * This handles all font encodings correctly without any JS PDF parsing.
+ * Falls back to a lightweight regex-based parser for non-standard PDFs.
+ */
+
 import * as FileSystem from 'expo-file-system/legacy';
+import { extractPdfText } from '../modules/pdf-text-extractor/src';
+import { isNusukItinerary, parseNusukText } from './nusuk-parser';
 import { EMPTY_ITINERARY } from './sample-data';
 import type { Itinerary } from './types';
+
+export interface PdfParseOutcome {
+  itinerary: Itinerary;
+  /** Which parser produced the result. */
+  source: 'nusuk' | 'fuzzy' | 'empty';
+  /** 0–1 — how complete the result is. <0.6 means the user should fill in Settings. */
+  confidence: number;
+  /** Field paths that we couldn't extract, so the UI can highlight them. */
+  missing: string[];
+}
 
 const AIRLINE_CODES: Record<string, string> = {
   EK: 'Emirates',
@@ -25,49 +45,9 @@ function extractFlightNumbers(text: string): string[] {
   return matches || [];
 }
 
-function extractTextFromPdfBase64(base64: string): string {
-  try {
-    // atob is available in modern JS engines (Hermes supports it)
-    const binary =
-      typeof atob !== 'undefined'
-        ? atob(base64)
-        : Buffer.from(base64, 'base64').toString('binary');
-    let text = '';
-
-    const btMatches = binary.match(/BT[\s\S]*?ET/g);
-    if (btMatches) {
-      for (const block of btMatches) {
-        const tjMatches = block.match(/\(([^)]*)\)\s*Tj/g);
-        if (tjMatches) {
-          for (const tj of tjMatches) {
-            const content = tj.match(/\(([^)]*)\)/);
-            if (content) text += content[1] + ' ';
-          }
-        }
-        const tjArrayMatches = block.match(/\[([^\]]*)\]\s*TJ/g);
-        if (tjArrayMatches) {
-          for (const tja of tjArrayMatches) {
-            const contents = tja.match(/\(([^)]*)\)/g);
-            if (contents) {
-              for (const c of contents) {
-                const content = c.match(/\(([^)]*)\)/);
-                if (content) text += content[1];
-              }
-              text += ' ';
-            }
-          }
-        }
-      }
-    }
-
-    const readableMatches = binary.match(/[\x20-\x7E]{10,}/g);
-    if (readableMatches) text += ' ' + readableMatches.join(' ');
-
-    return text;
-  } catch (e) {
-    return '';
-  }
-}
+// --------------------------------------------------------------------------
+// Fuzzy parser for non-Nusuk PDFs
+// --------------------------------------------------------------------------
 
 function parseItineraryText(text: string): Itinerary {
   const data: Itinerary = JSON.parse(JSON.stringify(EMPTY_ITINERARY));
@@ -128,25 +108,63 @@ function parseItineraryText(text: string): Itinerary {
   return data;
 }
 
-export async function parsePdfText(fileUri: string): Promise<Itinerary | null> {
+// --------------------------------------------------------------------------
+// Main entry point
+// --------------------------------------------------------------------------
+
+export async function parsePdfText(fileUri: string): Promise<PdfParseOutcome> {
   try {
     const fileInfo = await FileSystem.getInfoAsync(fileUri);
     if (!fileInfo.exists) throw new Error('File not found');
 
-    const base64Content = await FileSystem.readAsStringAsync(fileUri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
+    console.log('[PDF Parser] Reading file:', fileUri);
 
-    const text = extractTextFromPdfBase64(base64Content);
-    if (text && text.length > 50) {
-      const parsed = parseItineraryText(text);
-      if (parsed.pilgrim.name || parsed.flights.outbound.flightNumbers.length > 0) {
-        return parsed;
-      }
+    // Use native iOS PDFKit for text extraction — handles all font encodings
+    console.log('[PDF Parser] Extracting text with native PDFKit...');
+    const text = await extractPdfText(fileUri);
+    console.log(`[PDF Parser] Extracted text length: ${text.length}`);
+    if (text.length > 0) {
+      console.log(`[PDF Parser] Text preview (first 500 chars): ${text.slice(0, 500)}`);
     }
-    return null;
+
+    if (text && text.length > 50) {
+      console.log('[PDF Parser] Checking if Nusuk itinerary...');
+      if (isNusukItinerary(text)) {
+        console.log('[PDF Parser] Nusuk itinerary detected, parsing...');
+        const nusuk = parseNusukText(text);
+        console.log(`[PDF Parser] Nusuk confidence: ${nusuk.confidence}, missing: ${nusuk.missing.join(', ')}`);
+        return {
+          itinerary: nusuk.itinerary,
+          source: 'nusuk',
+          confidence: nusuk.confidence,
+          missing: nusuk.missing,
+        };
+      }
+      console.log('[PDF Parser] Not a Nusuk itinerary, trying fuzzy parse...');
+      const fuzzy = parseItineraryText(text);
+      const hasName = !!fuzzy.pilgrim.name;
+      const hasFlight = fuzzy.flights.outbound.flightNumbers.length > 0;
+      return {
+        itinerary: fuzzy,
+        source: 'fuzzy',
+        confidence: hasName && hasFlight ? 0.4 : hasName || hasFlight ? 0.2 : 0,
+        missing: [],
+      };
+    }
+    console.log(`[PDF Parser] Insufficient text extracted (${text.length} chars)`);
+    return {
+      itinerary: JSON.parse(JSON.stringify(EMPTY_ITINERARY)),
+      source: 'empty',
+      confidence: 0,
+      missing: [],
+    };
   } catch (error) {
-    console.error('PDF parsing error:', error);
-    return null;
+    console.error('[PDF Parser] parsePdfText error:', error);
+    return {
+      itinerary: JSON.parse(JSON.stringify(EMPTY_ITINERARY)),
+      source: 'empty',
+      confidence: 0,
+      missing: [],
+    };
   }
 }

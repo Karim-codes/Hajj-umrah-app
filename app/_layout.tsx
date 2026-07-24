@@ -65,10 +65,14 @@ export default function RootLayout() {
             }}
           >
             <Stack.Screen name="index" />
-            <Stack.Screen name="upload" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="choose-trip" options={{ presentation: 'card' }} />
+            <Stack.Screen name="umrah-setup" options={{ presentation: 'card' }} />
+            <Stack.Screen name="hajj-setup" options={{ presentation: 'card' }} />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="hajj-guide" options={{ presentation: 'card' }} />
             <Stack.Screen name="umrah-guide" options={{ presentation: 'card' }} />
+            <Stack.Screen name="stays" options={{ presentation: 'card' }} />
+            <Stack.Screen name="settings" options={{ presentation: 'card' }} />
           </Stack>
           <StatusBar style="light" />
         </ThemeProvider>

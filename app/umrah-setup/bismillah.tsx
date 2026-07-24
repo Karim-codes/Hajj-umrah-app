@@ -1,5 +1,4 @@
 import { Palette, RawafFonts } from '@/constants/rawaf-theme';
-import { useItinerary } from '@/context/itinerary-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
@@ -12,40 +11,27 @@ import {
     View,
 } from 'react-native';
 
-// Surah Al-Hajj 22:27 — the divine call to Hajj
-const AYAH_WORDS = [
-  'وَأَذِّن',
-  'فِي',
-  'ٱلنَّاسِ',
-  'بِٱلْحَجِّ',
-  'يَأْتُوكَ',
-  'رِجَالًا',
-  'وَعَلَىٰ',
-  'كُلِّ',
-  'ضَامِرٍ',
-];
+// Basmala — word by word for a dignified staggered reveal
+const BASMALA_WORDS = ['بِسْمِ', 'ٱللَّٰهِ', 'ٱلرَّحْمَٰنِ', 'ٱلرَّحِيمِ'];
 
-export default function SplashScreen() {
+export default function UmrahBismillahScreen() {
   const router = useRouter();
-  const { hasData, isLoading } = useItinerary();
 
   const fade = useRef(new Animated.Value(0)).current;
   const brandFade = useRef(new Animated.Value(0)).current;
   const brandSlide = useRef(new Animated.Value(8)).current;
   const dividerWidth = useRef(new Animated.Value(0)).current;
   const translationFade = useRef(new Animated.Value(0)).current;
-  const attributionFade = useRef(new Animated.Value(0)).current;
-  const taglineFade = useRef(new Animated.Value(0)).current;
+  const duaFade = useRef(new Animated.Value(0)).current;
   const ctaFade = useRef(new Animated.Value(0)).current;
 
-  // One animated value per ayah word
-  const wordAnims = useRef(AYAH_WORDS.map(() => new Animated.Value(0))).current;
+  const wordAnims = useRef(BASMALA_WORDS.map(() => new Animated.Value(0))).current;
 
   useEffect(() => {
-    Animated.timing(fade, { toValue: 1, duration: 700, useNativeDriver: true }).start();
+    Animated.timing(fade, { toValue: 1, duration: 600, useNativeDriver: true }).start();
 
     Animated.sequence([
-      Animated.delay(400),
+      Animated.delay(300),
       Animated.parallel([
         Animated.timing(brandFade, { toValue: 1, duration: 700, useNativeDriver: true }),
         Animated.timing(brandSlide, {
@@ -62,55 +48,37 @@ export default function SplashScreen() {
         useNativeDriver: false,
       }),
       Animated.delay(200),
-      // Word-by-word ayah reveal — slower stagger so each word is readable
       Animated.stagger(
-        220,
+        260,
         wordAnims.map((v) =>
           Animated.timing(v, {
             toValue: 1,
-            duration: 600,
+            duration: 650,
             easing: Easing.out(Easing.cubic),
             useNativeDriver: true,
           })
         )
       ),
       Animated.delay(400),
-      Animated.timing(translationFade, { toValue: 1, duration: 800, useNativeDriver: true }),
-      Animated.delay(300),
-      Animated.timing(attributionFade, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.timing(taglineFade, { toValue: 1, duration: 700, useNativeDriver: true }),
+      Animated.timing(translationFade, { toValue: 1, duration: 700, useNativeDriver: true }),
+      Animated.delay(200),
+      Animated.timing(duaFade, { toValue: 1, duration: 600, useNativeDriver: true }),
       Animated.timing(ctaFade, { toValue: 1, duration: 500, useNativeDriver: true }),
     ]).start();
-  }, [
-    fade,
-    brandFade,
-    brandSlide,
-    dividerWidth,
-    wordAnims,
-    translationFade,
-    attributionFade,
-    taglineFade,
-    ctaFade,
-  ]);
-
-  useEffect(() => {
-    if (!isLoading && hasData) {
-      const timer = setTimeout(() => router.replace('/(tabs)'), 6500);
-      return () => clearTimeout(timer);
-    }
-  }, [isLoading, hasData, router]);
+  }, [fade, brandFade, brandSlide, dividerWidth, wordAnims, translationFade, duaFade, ctaFade]);
 
   return (
     <LinearGradient
       colors={['#0a1024', '#0f1628', '#0a1024']}
-      style={styles.container}
+      style={s.container}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
     >
-      <View style={styles.vignetteTop} />
-      <View style={styles.vignetteBottom} />
+      <View style={s.vignetteTop} />
+      <View style={s.vignetteBottom} />
 
-      <Animated.View style={[styles.content, { opacity: fade }]}>
+      <Animated.View style={[s.content, { opacity: fade }]}>
+        {/* Brand header */}
         <Animated.View
           style={{
             opacity: brandFade,
@@ -118,44 +86,43 @@ export default function SplashScreen() {
             alignItems: 'center',
           }}
         >
-          <Text style={styles.brand}>RAWAF</Text>
-          <Text style={styles.subtitle}>Hajj Connect Center</Text>
+          <Text style={s.brand}>RAWAF</Text>
+          <Text style={s.subtitle}>Your Umrah Begins</Text>
         </Animated.View>
 
-        <View style={styles.dividerRow}>
+        {/* Expanding divider */}
+        <View style={s.dividerRow}>
           <Animated.View
             style={[
-              styles.dividerLine,
-              {
-                width: dividerWidth.interpolate({ inputRange: [0, 1], outputRange: [0, 50] }),
-              },
+              s.dividerLine,
+              { width: dividerWidth.interpolate({ inputRange: [0, 1], outputRange: [0, 50] }) },
             ]}
           />
-          <Animated.Text style={[styles.dividerStar, { opacity: dividerWidth }]}>◆</Animated.Text>
+          <Animated.Text style={[s.dividerStar, { opacity: dividerWidth }]}>
+            ◆
+          </Animated.Text>
           <Animated.View
             style={[
-              styles.dividerLine,
-              {
-                width: dividerWidth.interpolate({ inputRange: [0, 1], outputRange: [0, 50] }),
-              },
+              s.dividerLine,
+              { width: dividerWidth.interpolate({ inputRange: [0, 1], outputRange: [0, 50] }) },
             ]}
           />
         </View>
 
-        {/* Ayah — word by word reveal */}
-        <View style={styles.ayahRow}>
-          {AYAH_WORDS.map((word, i) => (
+        {/* Basmala — word by word */}
+        <View style={s.ayahRow}>
+          {BASMALA_WORDS.map((word, i) => (
             <Animated.Text
               key={i}
               style={[
-                styles.ayahWord,
+                s.ayahWord,
                 {
                   opacity: wordAnims[i],
                   transform: [
                     {
                       translateY: wordAnims[i].interpolate({
                         inputRange: [0, 1],
-                        outputRange: [6, 0],
+                        outputRange: [8, 0],
                       }),
                     },
                   ],
@@ -167,39 +134,36 @@ export default function SplashScreen() {
           ))}
         </View>
 
-        <Animated.Text style={[styles.translation, { opacity: translationFade }]}>
-          “And proclaim to the people the Hajj; they will come to you on foot and on every lean camel.”
+        {/* Translation */}
+        <Animated.Text style={[s.translation, { opacity: translationFade }]}>
+          "In the name of Allah, the Most Gracious, the Most Merciful."
         </Animated.Text>
 
-        <Animated.Text style={[styles.attribution, { opacity: attributionFade }]}>
-          Surah Al-Hajj · 22:27
+        {/* Dua */}
+        <Animated.Text style={[s.dua, { opacity: duaFade }]}>
+          May your Umrah be accepted
         </Animated.Text>
       </Animated.View>
 
-      <Animated.View style={[styles.tagWrap, { opacity: taglineFade }]}>
-        <Text style={styles.tagline}>Your sacred journey, beautifully organized.</Text>
+      {/* CTA */}
+      <Animated.View style={[s.ctaContainer, { opacity: ctaFade }]}>
+        <TouchableOpacity onPress={() => router.replace('/(tabs)')} activeOpacity={0.85}>
+          <LinearGradient
+            colors={[Palette.green, '#1faa6e']}
+            style={s.ctaButton}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Text style={s.ctaText}>Open My Itinerary</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+        <Text style={s.ctaHint}>Your journey is beautifully organized</Text>
       </Animated.View>
-
-      {!hasData && !isLoading && (
-        <Animated.View style={[styles.ctaContainer, { opacity: ctaFade }]}>
-          <TouchableOpacity onPress={() => router.push('/choose-trip')} activeOpacity={0.85}>
-            <LinearGradient
-              colors={[Palette.gold, '#a88838']}
-              style={styles.ctaButton}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Text style={styles.ctaText}>Begin</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-          <Text style={styles.ctaHint}>Hajj or Umrah — we’ll tailor your journey</Text>
-        </Animated.View>
-      )}
     </LinearGradient>
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
 
   vignetteTop: {
@@ -208,7 +172,7 @@ const styles = StyleSheet.create({
     width: 420,
     height: 420,
     borderRadius: 210,
-    backgroundColor: 'rgba(201,168,76,0.05)',
+    backgroundColor: 'rgba(46,204,135,0.04)',
   },
   vignetteBottom: {
     position: 'absolute',
@@ -223,7 +187,7 @@ const styles = StyleSheet.create({
 
   brand: {
     fontFamily: RawafFonts.display,
-    fontSize: 42,
+    fontSize: 38,
     color: Palette.textPrimary,
     letterSpacing: 10,
   },
@@ -231,7 +195,7 @@ const styles = StyleSheet.create({
     fontFamily: RawafFonts.body,
     fontSize: 11,
     color: Palette.textSecondary,
-    letterSpacing: 4,
+    letterSpacing: 3,
     textTransform: 'uppercase',
     marginTop: 8,
   },
@@ -239,7 +203,7 @@ const styles = StyleSheet.create({
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 26,
+    marginVertical: 28,
   },
   dividerLine: {
     height: 1,
@@ -256,51 +220,44 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 18,
     paddingHorizontal: 8,
   },
   ayahWord: {
     fontFamily: RawafFonts.display,
-    fontSize: 24,
+    fontSize: 36,
     color: Palette.textPrimary,
-    marginHorizontal: 5,
+    marginHorizontal: 6,
     marginVertical: 2,
-    lineHeight: 38,
+    lineHeight: 54,
   },
+
   translation: {
     fontFamily: RawafFonts.displayRegular,
     fontSize: 14,
     color: Palette.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22,
     fontStyle: 'italic',
     paddingHorizontal: 12,
     marginTop: 6,
   },
-  attribution: {
-    fontFamily: RawafFonts.bodyMedium,
-    fontSize: 10,
-    color: Palette.gold,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    marginTop: 12,
-  },
 
-  tagWrap: { position: 'absolute', bottom: 180, alignItems: 'center', paddingHorizontal: 32 },
-  tagline: {
-    fontFamily: RawafFonts.body,
-    fontSize: 12,
-    color: Palette.textMuted,
-    textAlign: 'center',
+  dua: {
+    fontFamily: RawafFonts.bodySemiBold,
+    fontSize: 13,
+    color: Palette.green,
     letterSpacing: 0.5,
+    marginTop: 18,
+    textAlign: 'center',
   },
 
-  ctaContainer: { position: 'absolute', bottom: 70, alignItems: 'center' },
+  ctaContainer: { position: 'absolute', bottom: 70, alignItems: 'center', width: '100%', paddingHorizontal: 32 },
   ctaButton: {
-    paddingHorizontal: 44,
-    paddingVertical: 16,
+    paddingHorizontal: 48,
+    paddingVertical: 18,
     borderRadius: 30,
-    shadowColor: Palette.gold,
+    shadowColor: Palette.green,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 14,
@@ -309,9 +266,8 @@ const styles = StyleSheet.create({
   ctaText: {
     fontFamily: RawafFonts.bodySemiBold,
     fontSize: 15,
-    color: '#0f1628',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    color: '#fff',
+    letterSpacing: 0.8,
   },
   ctaHint: {
     fontFamily: RawafFonts.body,
