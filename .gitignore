@@ -30,8 +30,16 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# local environment and service configuration
+# Keep a sanitized .env.example if the app gains environment variables.
+.env
+.env.*
+!.env.example
+.env.example.local
+.supabase/
+supabase/.env
+supabase/.env.*
+supabase/.temp/
 
 # typescript
 *.tsbuildinfo
@@ -45,3 +53,4 @@ app-example
 # personal data / local files
 *.pdf
 simulator_screenshot_*.png
+Hajj - my hajj Itinerary.*

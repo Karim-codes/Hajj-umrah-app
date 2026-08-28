@@ -1,9 +1,11 @@
-import { RitualGlyph, RitualGlyphKind, RitualIcon } from '@/components/ritual-glyph';
+import { RitualGlyphKind, RitualIcon } from '@/components/ritual-glyph';
 import { Palette, RawafFonts } from '@/constants/rawaf-theme';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     Animated,
     Dimensions,
@@ -19,6 +21,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width: SCREEN_W } = Dimensions.get('window');
+
+const DUA_BOOKMARKS_KEY = 'rawaf-dua-bookmarks';
 
 // ─── TYPES & DATA ────────────────────────────────────────────────────────────
 
@@ -366,12 +370,30 @@ function LinearStepCard({
   );
 }
 
+const STAT_INFO: Record<string, { title: string; body: string }> = {
+  pillars: {
+    title: 'The 4 Pillars of Umrah',
+    body: "Umrah's essentials are: Ihram (intention & sacred state), Tawaf (7 circuits of the Ka'bah), Sa'i (7 laps between Safa and Marwa), and Halq/Taqsir (shaving or trimming). Based on the practice of the Prophet ﷺ — Sahih al-Bukhari 1773.",
+  },
+  laps: {
+    title: 'Tawaf & Sa\'i — 7 + 7',
+    body: "Tawaf is 7 circuits around the Ka'bah; Sa'i is 7 laps between Safa and Marwa. \u201cIndeed, Safa and Marwa are among the symbols of Allah\u201d — Qur'an 2:158. See also Sahih al-Bukhari 1643.",
+  },
+  steps: {
+    title: 'The 12 Steps',
+    body: 'A step-by-step breakdown of the Umrah rites in the exact order the Prophet ﷺ performed them — from entering Ihram to exiting it after Halq/Taqsir.',
+  },
+};
+
 function LinearView({
   onDuaTap,
 }: {
   onDuaTap: (dua: NonNullable<UmrahStep['dua']>, title: string) => void;
 }) {
+  const [info, setInfo] = useState<{ title: string; body: string } | null>(null);
+
   return (
+    <>
     <ScrollView
       style={s.scroll}
       contentContainerStyle={s.linearContent}
@@ -384,10 +406,6 @@ function LinearView({
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
-        <View style={s.heroEmoji}>
-          <RitualGlyph kind="kaaba" size={54} color={Palette.gold} />
-        </View>
-        <Text style={s.heroEyebrow}>BEFORE DAY 8 · DHUL-HIJJAH</Text>
         <Text style={s.heroTitle}>Umrah</Text>
         <Text style={s.heroArabic}>ٱلْعُمْرَة</Text>
         <Text style={s.heroDesc}>
@@ -396,20 +414,29 @@ function LinearView({
         </Text>
 
         <View style={s.heroStats}>
-          <View style={s.heroStat}>
-            <Text style={s.heroStatNum}>4</Text>
+          <TouchableOpacity style={s.heroStat} activeOpacity={0.7} onPress={() => setInfo(STAT_INFO.pillars)}>
+            <View style={s.heroStatNumRow}>
+              <Text style={s.heroStatNum}>4</Text>
+              <Ionicons name="information-circle-outline" size={12} color={Palette.gold} />
+            </View>
             <Text style={s.heroStatLabel}>Pillars</Text>
-          </View>
+          </TouchableOpacity>
           <View style={s.heroStatDivider} />
-          <View style={s.heroStat}>
-            <Text style={s.heroStatNum}>7+7</Text>
+          <TouchableOpacity style={s.heroStat} activeOpacity={0.7} onPress={() => setInfo(STAT_INFO.laps)}>
+            <View style={s.heroStatNumRow}>
+              <Text style={s.heroStatNum}>7+7</Text>
+              <Ionicons name="information-circle-outline" size={12} color={Palette.gold} />
+            </View>
             <Text style={s.heroStatLabel}>Laps</Text>
-          </View>
+          </TouchableOpacity>
           <View style={s.heroStatDivider} />
-          <View style={s.heroStat}>
-            <Text style={s.heroStatNum}>12</Text>
+          <TouchableOpacity style={s.heroStat} activeOpacity={0.7} onPress={() => setInfo(STAT_INFO.steps)}>
+            <View style={s.heroStatNumRow}>
+              <Text style={s.heroStatNum}>12</Text>
+              <Ionicons name="information-circle-outline" size={12} color={Palette.gold} />
+            </View>
             <Text style={s.heroStatLabel}>Steps</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Decorative corners */}
@@ -453,6 +480,23 @@ function LinearView({
 
       <View style={{ height: 30 }} />
     </ScrollView>
+
+    {/* Stat info modal — hadith / source references */}
+    <Modal visible={!!info} transparent animationType="fade" onRequestClose={() => setInfo(null)}>
+      <Pressable style={s.sheetBackdrop} onPress={() => setInfo(null)}>
+        <Pressable style={s.infoCard} onPress={(e) => e.stopPropagation()}>
+          <View style={s.infoIconWrap}>
+            <Ionicons name="book-outline" size={20} color={Palette.gold} />
+          </View>
+          <Text style={s.infoTitle}>{info?.title}</Text>
+          <Text style={s.infoBody}>{info?.body}</Text>
+          <TouchableOpacity style={s.infoBtn} onPress={() => setInfo(null)} activeOpacity={0.8}>
+            <Text style={s.infoBtnText}>Close</Text>
+          </TouchableOpacity>
+        </Pressable>
+      </Pressable>
+    </Modal>
+    </>
   );
 }
 
@@ -785,6 +829,42 @@ export default function UmrahGuideScreen() {
     setDuaModal({ visible: true, dua, title });
   };
 
+  // Bookmarks + copy state for the Du'a sheet
+  const [bookmarks, setBookmarks] = useState<Record<string, boolean>>({});
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem(DUA_BOOKMARKS_KEY)
+      .then((raw) => {
+        if (raw) setBookmarks(JSON.parse(raw));
+      })
+      .catch(() => {});
+  }, []);
+
+  const toggleBookmark = useCallback((title: string) => {
+    setBookmarks((prev) => {
+      const next = { ...prev, [title]: !prev[title] };
+      if (!next[title]) delete next[title];
+      AsyncStorage.setItem(DUA_BOOKMARKS_KEY, JSON.stringify(next)).catch(() => {});
+      Haptics.selectionAsync().catch(() => {});
+      return next;
+    });
+  }, []);
+
+  const copyDua = useCallback(async (dua: NonNullable<UmrahStep['dua']>) => {
+    const text = `${dua.arabic}\n\n${dua.transliteration}\n\n${dua.translation}`;
+    try {
+      // Lazy-load so a dev client without the native module doesn't crash on startup.
+      const Clipboard = require('expo-clipboard');
+      await Clipboard.setStringAsync(text);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+    }
+  }, []);
+
   const openDetail = (step: UmrahStep, idx: number) => {
     setActiveIdx(idx);
     setDetailStep(step);
@@ -885,6 +965,17 @@ export default function UmrahGuideScreen() {
                 <Text style={s.sheetTitle}>{duaModal.title}</Text>
               </View>
               <TouchableOpacity
+                onPress={() => toggleBookmark(duaModal.title)}
+                style={s.sheetIconBtn}
+                hitSlop={8}
+              >
+                <Ionicons
+                  name={bookmarks[duaModal.title] ? 'bookmark' : 'bookmark-outline'}
+                  size={18}
+                  color={bookmarks[duaModal.title] ? Palette.gold : Palette.textSecondary}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
                 onPress={() => setDuaModal((prev) => ({ ...prev, visible: false }))}
                 style={s.sheetClose}
                 hitSlop={10}
@@ -893,12 +984,42 @@ export default function UmrahGuideScreen() {
               </TouchableOpacity>
             </View>
             {duaModal.dua && (
-              <ScrollView contentContainerStyle={s.sheetDuaBody} showsVerticalScrollIndicator={false}>
-                <Text style={s.sheetDuaArabic}>{duaModal.dua.arabic}</Text>
-                <View style={s.sheetDuaDivider} />
-                <Text style={s.sheetDuaTranslit}>{duaModal.dua.transliteration}</Text>
-                <Text style={s.sheetDuaTranslation}>{duaModal.dua.translation}</Text>
-              </ScrollView>
+              <>
+                <ScrollView contentContainerStyle={s.sheetDuaBody} showsVerticalScrollIndicator={false}>
+                  <Text style={s.sheetDuaArabic}>{duaModal.dua.arabic}</Text>
+                  <View style={s.sheetDuaDivider} />
+                  <Text style={s.sheetDuaTranslit}>{duaModal.dua.transliteration}</Text>
+                  <Text style={s.sheetDuaTranslation}>{duaModal.dua.translation}</Text>
+                </ScrollView>
+                <View style={s.duaActionBar}>
+                  <TouchableOpacity
+                    onPress={() => copyDua(duaModal.dua!)}
+                    style={s.duaActionBtn}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name={copied ? 'checkmark' : 'copy-outline'}
+                      size={16}
+                      color={Palette.gold}
+                    />
+                    <Text style={s.duaActionText}>{copied ? 'Copied' : 'Copy'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => toggleBookmark(duaModal.title)}
+                    style={s.duaActionBtn}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name={bookmarks[duaModal.title] ? 'bookmark' : 'bookmark-outline'}
+                      size={16}
+                      color={Palette.gold}
+                    />
+                    <Text style={s.duaActionText}>
+                      {bookmarks[duaModal.title] ? 'Saved' : 'Save'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
             )}
           </Pressable>
         </Pressable>
@@ -1147,19 +1268,13 @@ const s = StyleSheet.create({
     marginTop: 4,
     alignItems: 'center',
   },
-  heroEmoji: { marginBottom: 14 },
-  heroEyebrow: {
-    fontFamily: RawafFonts.bodyBold,
-    fontSize: 10,
-    color: Palette.gold,
-    letterSpacing: 2,
-  },
+  heroStatNumRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   heroTitle: {
     fontFamily: RawafFonts.display,
     fontSize: 42,
     color: Palette.textPrimary,
     lineHeight: 46,
-    marginTop: 4,
+    marginTop: 0,
   },
   heroArabic: {
     fontFamily: RawafFonts.displayRegular,
@@ -1333,7 +1448,61 @@ const s = StyleSheet.create({
     lineHeight: 21,
   },
 
-  // Du'a chip (linear)
+  // Info modal (hadith sources)
+  infoCard: {
+    width: '86%',
+    alignSelf: 'center',
+    marginTop: 'auto',
+    marginBottom: 'auto',
+    backgroundColor: Palette.cardBgLight,
+    borderRadius: 22,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: Palette.goldBorder,
+    alignItems: 'center',
+  },
+  infoIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(201,168,76,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(201,168,76,0.3)',
+    marginBottom: 14,
+  },
+  infoTitle: {
+    fontFamily: RawafFonts.display,
+    fontSize: 22,
+    color: Palette.textPrimary,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  infoBody: {
+    fontFamily: RawafFonts.body,
+    fontSize: 14,
+    color: Palette.textSecondary,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  infoBtn: {
+    alignSelf: 'stretch',
+    paddingVertical: 13,
+    borderRadius: 12,
+    backgroundColor: 'rgba(201,168,76,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(201,168,76,0.3)',
+    alignItems: 'center',
+  },
+  infoBtnText: {
+    fontFamily: RawafFonts.bodySemiBold,
+    fontSize: 14,
+    color: Palette.gold,
+  },
+
+  // Du'a chip (linear) — glassmorphic
   duaChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1345,7 +1514,12 @@ const s = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: Palette.goldMuted,
     borderWidth: 1,
-    borderColor: Palette.goldBorder,
+    borderColor: 'rgba(201,168,76,0.4)',
+    shadowColor: Palette.gold,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
   },
   duaChipText: {
     fontFamily: RawafFonts.bodySemiBold,
@@ -1638,6 +1812,43 @@ const s = StyleSheet.create({
     backgroundColor: Palette.cardBg,
     borderWidth: 1,
     borderColor: Palette.border,
+  },
+  sheetIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Palette.cardBg,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    marginRight: 8,
+  },
+  duaActionBar: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 22,
+    paddingTop: 12,
+    paddingBottom: 6,
+    borderTopWidth: 1,
+    borderTopColor: Palette.border,
+  },
+  duaActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(201,168,76,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(201,168,76,0.3)',
+  },
+  duaActionText: {
+    fontFamily: RawafFonts.bodySemiBold,
+    fontSize: 13,
+    color: Palette.gold,
   },
   sheetBody: {
     paddingHorizontal: 22,

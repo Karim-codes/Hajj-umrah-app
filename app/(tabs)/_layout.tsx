@@ -1,16 +1,41 @@
-import React from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
-import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { Palette, RawafFonts } from '@/constants/rawaf-theme';
+import { Ionicons } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Platform, StyleSheet, View } from 'react-native';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
-function TabIcon({ name, color, focused }: { name: IoniconName; color: string; focused: boolean }) {
+function TabIcon({
+  name,
+  nameOutline,
+  color,
+  focused,
+}: {
+  name: IoniconName;
+  nameOutline: IoniconName;
+  color: string;
+  focused: boolean;
+}) {
+  const lift = useRef(new Animated.Value(focused ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.spring(lift, {
+      toValue: focused ? 1 : 0,
+      useNativeDriver: true,
+      tension: 120,
+      friction: 9,
+    }).start();
+  }, [focused, lift]);
+
+  const translateY = lift.interpolate({ inputRange: [0, 1], outputRange: [0, -3] });
+
   return (
     <View style={styles.tabIconContainer}>
       {focused && <View style={styles.activeIndicator} />}
-      <Ionicons name={name} size={22} color={color} />
+      <Animated.View style={{ transform: [{ translateY }] }}>
+        <Ionicons name={focused ? name : nameOutline} size={22} color={color} />
+      </Animated.View>
     </View>
   );
 }
@@ -32,7 +57,7 @@ export default function TabsLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="home" color={color} focused={focused} />
+            <TabIcon name="home" nameOutline="home-outline" color={color} focused={focused} />
           ),
         }}
       />
@@ -41,7 +66,7 @@ export default function TabsLayout() {
         options={{
           title: 'Journey',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="map" color={color} focused={focused} />
+            <TabIcon name="map" nameOutline="map-outline" color={color} focused={focused} />
           ),
         }}
       />
@@ -50,16 +75,16 @@ export default function TabsLayout() {
         options={{
           title: 'Flights',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="airplane" color={color} focused={focused} />
+            <TabIcon name="airplane" nameOutline="airplane-outline" color={color} focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
         name="documents"
         options={{
-          title: 'Docs',
+          title: 'Travel',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="document-text" color={color} focused={focused} />
+            <TabIcon name="briefcase" nameOutline="briefcase-outline" color={color} focused={focused} />
           ),
         }}
       />

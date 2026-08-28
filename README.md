@@ -25,6 +25,10 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
+## Public repository safety
+
+Local environment files, Supabase CLI state, signing keys, generated native folders, and personal itinerary exports are excluded from Git. Never commit credentials to this repository. If configuration is added later, put real values in `.env` and commit only a sanitized `.env.example` with placeholder values.
+
 ## Get a fresh project
 
 When you're ready, run:

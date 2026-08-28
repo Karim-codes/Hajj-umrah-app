@@ -570,7 +570,12 @@ const glyph = StyleSheet.create({
 
 function PrayerCountdown({ city }: { city: string }) {
   const [prayers, setPrayers] = useState<{ name: string; time: string }[] | null>(null);
-  const [next, setNext] = useState<{ name: string; time: string; diff: string } | null>(null);
+  const [next, setNext] = useState<{
+    name: string;
+    time: string;
+    diff: string;
+    progress: number;
+  } | null>(null);
 
   const fetchPrayers = useCallback(async () => {
     try {
@@ -590,24 +595,39 @@ function PrayerCountdown({ city }: { city: string }) {
 
       // Find next prayer
       const now = new Date();
-      for (const p of list) {
-        const [h, m] = p.time.split(':').map(Number);
-        const pDate = new Date(now);
-        pDate.setHours(h, m, 0, 0);
-        if (pDate > now) {
-          const diffMs = pDate.getTime() - now.getTime();
-          const hrs = Math.floor(diffMs / 3600000);
-          const mins = Math.floor((diffMs % 3600000) / 60000);
-          setNext({
-            name: p.name,
-            time: p.time,
-            diff: hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`,
-          });
-          return;
-        }
+      const toDate = (t: string) => {
+        const [h, m] = t.split(':').map(Number);
+        const d = new Date(now);
+        d.setHours(h, m, 0, 0);
+        return d;
+      };
+      const nextIdx = list.findIndex((p) => toDate(p.time) > now);
+      if (nextIdx === -1) {
+        // All prayers passed today
+        setNext({ name: list[0].name, time: list[0].time, diff: 'Tomorrow', progress: 0.95 });
+        return;
       }
-      // All prayers passed today
-      setNext({ name: list[0].name, time: list[0].time, diff: 'Tomorrow' });
+      const p = list[nextIdx];
+      const nextDate = toDate(p.time);
+      let prevDate: Date;
+      if (nextIdx > 0) {
+        prevDate = toDate(list[nextIdx - 1].time);
+      } else {
+        prevDate = toDate(list[list.length - 1].time);
+        prevDate.setDate(prevDate.getDate() - 1);
+      }
+      const totalMs = nextDate.getTime() - prevDate.getTime();
+      const elapsedMs = now.getTime() - prevDate.getTime();
+      const progress = Math.max(0, Math.min(1, totalMs > 0 ? elapsedMs / totalMs : 0));
+      const diffMs = nextDate.getTime() - now.getTime();
+      const hrs = Math.floor(diffMs / 3600000);
+      const mins = Math.floor((diffMs % 3600000) / 60000);
+      setNext({
+        name: p.name,
+        time: p.time,
+        diff: hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`,
+        progress,
+      });
     } catch {
       // silent fail
     }
@@ -624,13 +644,24 @@ function PrayerCountdown({ city }: { city: string }) {
           <MonochromeBadge type="prayer" size={38} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={prayerStyles.label}>NEXT PRAYER</Text>
+          <View style={prayerStyles.labelRow}>
+            <Text style={prayerStyles.label}>NEXT PRAYER</Text>
+            <View style={prayerStyles.locPill}>
+              <Ionicons name="location" size={9} color={Palette.green} />
+              <Text style={prayerStyles.locText}>{city}</Text>
+            </View>
+          </View>
           <Text style={prayerStyles.name}>{next.name}</Text>
         </View>
         <View style={prayerStyles.timeWrap}>
           <Text style={prayerStyles.time}>{next.time}</Text>
           <Text style={prayerStyles.countdown}>in {next.diff}</Text>
         </View>
+      </View>
+
+      {/* time-to-next progress bar */}
+      <View style={prayerStyles.timeTrack}>
+        <View style={[prayerStyles.timeFill, { width: `${Math.round(next.progress * 100)}%` }]} />
       </View>
       {prayers && (
         <View style={prayerStyles.grid}>
@@ -662,6 +693,34 @@ const prayerStyles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
   iconWrap: {
     marginRight: 12,
+  },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  locPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: 'rgba(46,204,135,0.12)',
+  },
+  locText: {
+    fontFamily: RawafFonts.bodyBold,
+    fontSize: 8,
+    letterSpacing: 0.5,
+    color: Palette.green,
+  },
+  timeTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    overflow: 'hidden',
+    marginTop: 12,
+  },
+  timeFill: {
+    height: '100%',
+    borderRadius: 2,
+    backgroundColor: Palette.green,
   },
   label: {
     fontFamily: RawafFonts.bodyBold,
